@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AZONE WORLD — 3D体験ストア</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Oswald:wght@400;500;600;700&family=Shippori+Mincho+B1:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e0f14; --bg2:#15171f; --panel:#1b1e28; --panel2:#232734; --ink:#f3f4f8; --muted:#9aa0b2; --line:#2c3040;
+    --accent:#7c5cff; --accent2:#9d86ff; --accent-d:#5a3fd6; --ok:#34d3a6;
+    --sans:"Zen Kaku Gothic New",sans-serif; --stencil:"Oswald",sans-serif; --mincho:"Shippori Mincho B1",serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;user-select:none}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+
+  /* brand mark */
+  #vsw{position:fixed;top:15px;left:18px;z-index:35;font-family:var(--stencil);font-weight:700;font-size:16px;letter-spacing:.02em;color:var(--accent2)}
+  #vsw b{color:var(--ink);font-weight:700}
+
+  /* ===== START / SELECT ===== */
+  #start{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+         background:radial-gradient(120% 110% at 50% 0%,#1b1e2b 0%,#0e0f14 70%);padding:48px 24px;overflow:auto}
+  #start .kick{font-family:var(--stencil);font-weight:600;letter-spacing:.32em;font-size:12px;color:var(--accent2);margin-bottom:14px}
+  #start h1{font-family:var(--mincho);font-weight:700;font-size:clamp(28px,5.4vw,46px);line-height:1.3;letter-spacing:.02em}
+  #start h1 .ac{color:var(--accent2)}
+  #start .sub{color:var(--muted);font-size:14.5px;margin-top:14px;max-width:46ch}
+  .cards{display:flex;gap:20px;margin-top:40px;flex-wrap:wrap;justify-content:center}
+  .pcard{width:300px;background:linear-gradient(180deg,#1c2030,#161924);border:1px solid var(--line);border-radius:18px;overflow:hidden;cursor:pointer;
+         text-align:left;transition:transform .25s cubic-bezier(.2,.8,.2,1),border-color .25s,box-shadow .25s;animation:up .6s ease backwards}
+  @keyframes up{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+  .pcard:hover{transform:translateY(-8px);border-color:var(--accent);box-shadow:0 26px 60px rgba(124,92,255,.28)}
+  .pcard .thumb{height:180px;display:flex;align-items:center;justify-content:center;position:relative;
+                background:radial-gradient(80% 90% at 50% 30%,#2a2f44,#13151f)}
+  .pcard .thumb .ico{font-family:var(--stencil);font-weight:700;font-size:58px;color:var(--accent2);opacity:.85}
+  .pcard .thumb .badge{position:absolute;top:12px;left:12px;font-family:var(--stencil);letter-spacing:.12em;font-size:10px;color:#fff;background:var(--accent);padding:5px 10px;border-radius:20px}
+  .pcard .b{padding:20px 20px 22px}
+  .pcard .nm{font-family:var(--stencil);font-weight:700;font-size:21px;letter-spacing:.02em}
+  .pcard .sm{font-size:12.5px;color:var(--muted);margin-top:3px}
+  .pcard .pr{font-family:var(--stencil);font-weight:700;font-size:20px;margin-top:14px}
+  .pcard .pr small{font-size:11px;color:var(--muted);font-family:var(--sans);font-weight:500}
+  .pcard .go{margin-top:14px;text-align:center;border:1px solid var(--accent);color:var(--accent2);border-radius:10px;padding:11px 0;font-weight:700;font-size:13.5px;transition:.2s}
+  .pcard:hover .go{background:var(--accent);color:#fff}
+  #start .foot{margin-top:30px;font-size:11.5px;color:#5e647a;letter-spacing:.03em}
+
+  /* ===== VIEWER HUD ===== */
+  .hud{position:fixed;z-index:20;display:none}
+  #status{top:14px;left:50%;transform:translateX(-50%);max-width:90vw;text-align:center;font-size:12.5px;color:var(--ink);
+          background:rgba(20,22,30,.6);border:1px solid var(--line);border-radius:30px;padding:8px 18px;backdrop-filter:blur(10px)}
+  #back{top:14px;right:16px;background:rgba(20,22,30,.6);border:1px solid var(--line);color:var(--ink);border-radius:30px;
+        padding:9px 16px;font-size:12.5px;font-weight:600;cursor:pointer;backdrop-filter:blur(10px)}
+  #spin{top:56px;right:16px;background:rgba(20,22,30,.6);border:1px solid var(--line);color:var(--ink);border-radius:30px;
+        padding:9px 16px;font-size:12.5px;font-weight:600;cursor:pointer;backdrop-filter:blur(10px)}
+  #spin.on{background:var(--accent);border-color:transparent;color:#fff}
+
+  /* options dock */
+  #dock{left:50%;transform:translateX(-50%);bottom:96px;display:flex;flex-direction:column;gap:12px;align-items:center;width:min(620px,94vw)}
+  .opt{width:100%;background:rgba(20,22,30,.66);border:1px solid var(--line);border-radius:16px;padding:13px 16px;backdrop-filter:blur(12px)}
+  .opt .lab{font-family:var(--stencil);letter-spacing:.14em;font-size:10.5px;color:var(--muted);margin-bottom:9px;text-transform:uppercase}
+  .swatches{display:flex;gap:10px;flex-wrap:wrap}
+  .sw{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2px solid transparent;outline:1px solid rgba(255,255,255,.18);transition:transform .15s}
+  .sw:hover{transform:scale(1.12)}
+  .sw.sel{border-color:#fff;transform:scale(1.12)}
+  .finishes{display:flex;gap:9px;flex-wrap:wrap}
+  .fin{padding:8px 15px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:12.5px;font-weight:600;cursor:pointer;transition:.18s}
+  .fin.sel{background:var(--accent);border-color:transparent;color:#fff}
+
+  /* order bar */
+  #orderbar{left:0;right:0;bottom:0;display:flex;align-items:center;gap:14px;justify-content:space-between;
+            padding:14px 18px;background:linear-gradient(0deg,rgba(14,15,20,.96),rgba(14,15,20,.7));border-top:1px solid var(--line);backdrop-filter:blur(8px)}
+  #orderbar .info .nm{font-family:var(--stencil);font-weight:700;font-size:16px}
+  #orderbar .info .spec{font-size:11.5px;color:var(--muted)}
+  #orderbar .right{display:flex;align-items:center;gap:14px}
+  #orderbar .price{font-family:var(--stencil);font-weight:700;font-size:22px}
+  #buy{background:linear-gradient(135deg,var(--accent),var(--accent-d));color:#fff;border:none;border-radius:30px;
+       padding:14px 26px;font-size:14.5px;font-weight:700;cursor:pointer;box-shadow:0 10px 28px rgba(124,92,255,.4);white-space:nowrap}
+  #buy:active{transform:translateY(1px)}
+
+  /* loader */
+  #loader{position:fixed;inset:0;z-index:25;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(14,15,20,.84);backdrop-filter:blur(4px)}
+  #loader .ring{width:46px;height:46px;border:3px solid var(--line);border-top-color:var(--accent2);border-radius:50%;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #loader .lt{margin-top:16px;font-size:13px;color:var(--muted);font-family:var(--stencil);letter-spacing:.1em}
+
+  /* hint */
+  #hint{position:fixed;bottom:172px;left:50%;transform:translateX(-50%);z-index:18;font-size:11px;color:var(--muted);
+        background:rgba(20,22,30,.5);border:1px solid var(--line);border-radius:20px;padding:6px 15px;backdrop-filter:blur(8px);display:none}
+
+  /* ===== ORDER MODAL ===== */
+  #modal{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(6,7,10,.7);backdrop-filter:blur(6px);padding:18px}
+  .sheet{width:440px;max-width:96vw;max-height:92vh;overflow:auto;background:linear-gradient(180deg,#1c2030,#14161f);border:1px solid var(--line);border-radius:22px;box-shadow:0 40px 80px rgba(0,0,0,.6)}
+  .sheet .hd{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--line)}
+  .sheet .hd b{font-family:var(--stencil);letter-spacing:.06em;font-size:15px}
+  .sheet .hd .x{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer}
+  .sheet .bd{padding:20px 22px}
+  .steps{display:flex;gap:6px;margin-bottom:18px}
+  .steps i{flex:1;height:4px;border-radius:3px;background:var(--line)}
+  .steps i.on{background:var(--accent)}
+  .row{display:flex;align-items:center;gap:14px;padding:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:14px}
+  .row .mini{width:54px;height:54px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:var(--stencil);font-weight:700;font-size:20px;color:var(--accent2);background:radial-gradient(80% 90% at 50% 30%,#2a2f44,#13151f);flex:none}
+  .row .t .nm{font-family:var(--stencil);font-weight:700;font-size:15px}
+  .row .t .sp{font-size:11.5px;color:var(--muted)}
+  .row .pr{margin-left:auto;font-family:var(--stencil);font-weight:700;font-size:16px}
+  .qty{display:flex;align-items:center;gap:12px;margin:6px 0 16px}
+  .qty button{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:18px;cursor:pointer}
+  .qty span{font-family:var(--stencil);font-weight:700;font-size:17px;min-width:24px;text-align:center}
+  .fld{margin-bottom:13px}
+  .fld label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:5px;letter-spacing:.02em}
+  .fld input,.fld select{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 13px;color:var(--ink);font-size:14px;font-family:var(--sans);outline:none}
+  .fld input:focus,.fld select:focus{border-color:var(--accent)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .pays{display:flex;flex-direction:column;gap:10px}
+  .pay{display:flex;align-items:center;gap:12px;padding:13px 15px;border:1px solid var(--line);border-radius:12px;cursor:pointer;background:var(--panel);font-size:14px;font-weight:600}
+  .pay.sel{border-color:var(--accent);background:rgba(124,92,255,.1)}
+  .pay .dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--muted);flex:none}
+  .pay.sel .dot{border-color:var(--accent);background:var(--accent);box-shadow:inset 0 0 0 3px #14161f}
+  .total{display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 16px;padding-top:14px;border-top:1px solid var(--line)}
+  .total .lab{font-size:13px;color:var(--muted)}
+  .total .v{font-family:var(--stencil);font-weight:700;font-size:26px}
+  .total .v small{font-size:12px;color:var(--muted);font-weight:500;font-family:var(--sans)}
+  .act{display:flex;gap:10px;margin-top:6px}
+  .btn{flex:1;border:none;border-radius:12px;padding:14px;font-size:14.5px;font-weight:700;cursor:pointer;font-family:var(--sans)}
+  .btn.ghost{background:var(--panel);border:1px solid var(--line);color:var(--ink);flex:0 0 auto;padding:14px 18px}
+  .btn.go{background:linear-gradient(135deg,var(--accent),var(--accent-d));color:#fff}
+  .demo-note{font-size:11px;color:#6c7288;margin-top:12px;line-height:1.7;text-align:center}
+  .done{text-align:center;padding:14px 0}
+  .done .chk{width:64px;height:64px;border-radius:50%;background:rgba(52,211,166,.14);color:var(--ok);display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 16px}
+  .done h3{font-family:var(--mincho);font-weight:700;font-size:22px;margin-bottom:8px}
+  .done p{color:var(--muted);font-size:13.5px;line-height:1.8}
+  .done .onum{font-family:var(--stencil);letter-spacing:.1em;margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:14px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="vsw"><b>AZONE</b> WORLD<span style="color:var(--muted);font-weight:400;font-size:11px;font-family:var(--sans)">　3D体験ストア</span></div>
+
+<!-- LOADER -->
+<div id="loader"><div class="ring"></div><div class="lt" id="lt">LOADING 3D…</div></div>
+
+<!-- START / SELECT -->
+<div id="start">
+  <div class="kick">AZONE WORLD · 3D EXPERIENCE STORE</div>
+  <h1>商品を<span class="ac">3Dで体感</span>して、<br>そのまま注文まで。</h1>
+  <div class="sub">回して・寄って・仕様を選んで、気に入ったら決済へ。実物を手に取る前に、立体と質感をその場で確かめられます。</div>
+  <div class="cards" id="cards"></div>
+  <div class="foot">ドラッグで回転・ホイール/ピンチで拡大　｜　Produced by Vsw.co.jp</div>
+</div>
+
+<!-- VIEWER HUD -->
+<div id="status" class="hud"></div>
+<button id="back" class="hud">← 商品一覧</button>
+<button id="spin" class="hud on">⟳ 自動回転</button>
+<div id="hint" class="hud">ドラッグで回転・ホイールで拡大</div>
+
+<div id="dock" class="hud">
+  <div class="opt"><div class="lab">Color / カラー</div><div class="swatches" id="sw"></div></div>
+  <div class="opt"><div class="lab">Finish / 仕上げ</div><div class="finishes" id="fin"></div></div>
+</div>
+
+<div id="orderbar" class="hud">
+  <div class="info"><div class="nm" id="obNm">—</div><div class="spec" id="obSpec">—</div></div>
+  <div class="right"><div class="price" id="obPrice">—</div><button id="buy">🛒 この仕様で注文</button></div>
+</div>
+
+<!-- ORDER MODAL -->
+<div id="modal"><div class="sheet">
+  <div class="hd"><b id="mTitle">CART / カート</b><button class="x" id="mX">✕</button></div>
+  <div class="bd" id="mBody"></div>
+</div></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+// ---------- products ----------
+const COLORS=[
+  {n:'ホワイト',c:0xe9e9ef},{n:'レッド',c:0xc23b32},{n:'ブルー',c:0x3b6fd6},
+  {n:'グリーン',c:0x3aa564},{n:'ブラック',c:0x23252e},{n:'ゴールド',c:0xc99a45},{n:'パープル',c:0x7c5cff}
+];
+const FINISHES=[
+  {n:'マット',rough:0.85,metal:0.0,add:0},
+  {n:'グロス',rough:0.18,metal:0.05,add:800},
+  {n:'メタリック',rough:0.32,metal:0.9,add:1600}
+];
+const PRODUCTS=[
+  {id:'rx78', code:'RX-78', name:'RX-78', sub:'1/100スケール・組立済フィギュア', file:'models/rx78.stl', price:18800, rotX:-Math.PI/2, color:0, badge:'STANDARD'},
+  {id:'zaku', code:'ZAKU', name:'ZAKU', sub:'1/100スケール・組立済フィギュア（高密度）', file:'models/zaku-red.stl', price:24800, rotZ:-Math.PI/2, color:1, badge:'PREMIUM'}
+];
+
+const yen=n=>'¥'+n.toLocaleString();
+
+// ---------- three setup ----------
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,0.1,200);
+camera.position.set(0,1.6,6);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.08;
+document.getElementById('app').appendChild(renderer.domElement);
+
+// studio background (radial gradient)
+const bgTex=(function(){const cv=document.createElement('canvas');cv.width=cv.height=512;const x=cv.getContext('2d');
+  const g=x.createRadialGradient(256,180,40,256,300,520); g.addColorStop(0,'#2a2f43'); g.addColorStop(0.5,'#171a24'); g.addColorStop(1,'#0c0d12');
+  x.fillStyle=g;x.fillRect(0,0,512,512);const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;return t;})();
+scene.background=bgTex;
+
+const pmrem=new THREE.PMREMGenerator(renderer);
+scene.environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
+
+// lights
+scene.add(new THREE.HemisphereLight(0xdfe6ff,0x20222c,0.55));
+const key=new THREE.DirectionalLight(0xffffff,2.6); key.position.set(4,7,5); key.castShadow=true;
+key.shadow.mapSize.set(2048,2048); key.shadow.camera.near=1; key.shadow.camera.far=40;
+key.shadow.camera.left=-6;key.shadow.camera.right=6;key.shadow.camera.top=6;key.shadow.camera.bottom=-6; key.shadow.bias=-0.0003;
+scene.add(key);
+const rim=new THREE.DirectionalLight(0x9d86ff,1.4); rim.position.set(-6,4,-4); scene.add(rim);
+const fill=new THREE.DirectionalLight(0xffffff,0.5); fill.position.set(-3,2,6); scene.add(fill);
+
+// pedestal + ground shadow
+const stage=new THREE.Group(); scene.add(stage);
+const ground=new THREE.Mesh(new THREE.CircleGeometry(40,48), new THREE.ShadowMaterial({opacity:0.42}));
+ground.rotation.x=-Math.PI/2; ground.position.y=0; ground.receiveShadow=true; scene.add(ground);
+const pedMat=new THREE.MeshStandardMaterial({color:0x14151c,roughness:0.6,metalness:0.3});
+const pedTopMat=new THREE.MeshStandardMaterial({color:0x202533,roughness:0.4,metalness:0.4,emissive:0x2a2350,emissiveIntensity:0.25});
+const ped=new THREE.Group();
+const pedBody=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.7,0.5,56),pedMat); pedBody.position.y=0.25; pedBody.receiveShadow=true; pedBody.castShadow=true;
+const pedTop=new THREE.Mesh(new THREE.CylinderGeometry(1.52,1.52,0.06,56),pedTopMat); pedTop.position.y=0.53;
+const pedRing=new THREE.Mesh(new THREE.TorusGeometry(1.52,0.02,12,64),new THREE.MeshStandardMaterial({color:0x7c5cff,emissive:0x7c5cff,emissiveIntensity:0.8,roughness:0.4})); pedRing.rotation.x=Math.PI/2; pedRing.position.y=0.56;
+ped.add(pedBody,pedTop,pedRing); stage.add(ped);
+const PED_TOP=0.56;
+
+// model holder (rotates)
+const holder=new THREE.Group(); stage.add(holder);
+
+// controls
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true; controls.dampingFactor=0.08; controls.minDistance=2.4; controls.maxDistance=12;
+controls.maxPolarAngle=Math.PI*0.52; controls.target.set(0,1.4,0); controls.enablePan=false;
+
+// ---------- state ----------
+let mesh=null, mat=null, curProduct=null, colorIdx=0, finishIdx=0, spin=true, started=false;
+const loaderCache={};
+
+function buildMat(){
+  mat=new THREE.MeshStandardMaterial({color:COLORS[colorIdx].c, roughness:FINISHES[finishIdx].rough, metalness:FINISHES[finishIdx].metal, envMapIntensity:1.0});
+  if(mesh) mesh.material=mat;
+}
+function applyColor(){ if(mat) mat.color.setHex(COLORS[colorIdx].c); }
+function applyFinish(){ if(mat){ mat.roughness=FINISHES[finishIdx].rough; mat.metalness=FINISHES[finishIdx].metal; mat.needsUpdate=true; } }
+
+function currentPrice(){ return curProduct.price + FINISHES[finishIdx].add; }
+function refreshOrderBar(){
+  document.getElementById('obNm').textContent=curProduct.name;
+  document.getElementById('obSpec').textContent=COLORS[colorIdx].n+' ／ '+FINISHES[finishIdx].n+'仕上げ';
+  document.getElementById('obPrice').textContent=yen(currentPrice());
+}
+
+const stl=new STLLoader();
+function loadProduct(p){
+  curProduct=p; colorIdx=p.color; finishIdx=0;
+  document.getElementById('start').style.display='none';
+  document.querySelectorAll('.hud').forEach(e=>e.style.display=e.id==='hint'?'block':(e.id==='orderbar'?'flex':(e.id==='dock'?'flex':'block')));
+  document.getElementById('orderbar').style.display='flex';
+  document.getElementById('dock').style.display='flex';
+  document.getElementById('status').textContent=p.name+'：ドラッグで回して、仕様を選べます';
+  document.getElementById('hint').style.display='block'; setTimeout(()=>{document.getElementById('hint').style.display='none';},4200);
+  started=true; spin=true; document.getElementById('spin').classList.add('on');
+  renderSwatches(); renderFinishes(); refreshOrderBar();
+
+  if(loaderCache[p.id]){ placeGeometry(loaderCache[p.id], p); return; }
+  const ld=document.getElementById('loader'); ld.style.display='flex';
+  document.getElementById('lt').textContent='LOADING 3D… 0%';
+  stl.load(p.file, geo=>{ loaderCache[p.id]=geo; ld.style.display='none'; placeGeometry(geo,p); },
+    ev=>{ if(ev.lengthComputable){ const pct=Math.round(ev.loaded/ev.total*100); document.getElementById('lt').textContent='LOADING 3D… '+pct+'%'; } },
+    err=>{ document.getElementById('lt').textContent='読み込みに失敗しました'; console.error(err); });
+}
+
+function placeGeometry(srcGeo,p){
+  if(mesh){ holder.remove(mesh); }
+  const geo=srcGeo.clone();
+  geo.computeVertexNormals();
+  if(p.rotX)geo.rotateX(p.rotX);
+  if(p.rotY)geo.rotateY(p.rotY);
+  if(p.rotZ)geo.rotateZ(p.rotZ);
+  geo.computeBoundingBox();
+  const bb=geo.boundingBox, size=new THREE.Vector3(), center=new THREE.Vector3();
+  bb.getSize(size); bb.getCenter(center);
+  geo.translate(-center.x,-center.y,-center.z);          // center at origin
+  const targetH=2.4, scale=targetH/Math.max(size.y,0.0001);
+  buildMat();
+  mesh=new THREE.Mesh(geo,mat); mesh.castShadow=true; mesh.receiveShadow=true;
+  mesh.scale.setScalar(scale);
+  holder.position.set(0,0,0);
+  // sit on pedestal: bottom of scaled bbox to pedestal top
+  mesh.position.y = PED_TOP + (size.y*scale)/2;
+  holder.add(mesh);
+  controls.target.set(0, PED_TOP + size.y*scale*0.5, 0);
+  camera.position.set(0, PED_TOP + size.y*scale*0.62, Math.max(4.4,size.y*scale*1.8));
+  controls.update();
+  applyColor(); applyFinish();
+}
+
+// ---------- UI render ----------
+function renderCards(){
+  const wrap=document.getElementById('cards');
+  PRODUCTS.forEach((p,i)=>{
+    const el=document.createElement('div'); el.className='pcard'; el.style.animationDelay=(i*0.08)+'s';
+    el.innerHTML=`<div class="thumb"><span class="badge">${p.badge}</span><span class="ico">${p.code}</span></div>
+      <div class="b"><div class="nm">${p.name}</div><div class="sm">${p.sub}</div>
+      <div class="pr">${yen(p.price)} <small>〜（税込）</small></div>
+      <div class="go">3Dで見る ▶</div></div>`;
+    el.addEventListener('click',()=>loadProduct(p));
+    wrap.appendChild(el);
+  });
+}
+function renderSwatches(){
+  const wrap=document.getElementById('sw'); wrap.innerHTML='';
+  COLORS.forEach((c,i)=>{ const s=document.createElement('div'); s.className='sw'+(i===colorIdx?' sel':''); s.style.background='#'+c.c.toString(16).padStart(6,'0'); s.title=c.n;
+    s.addEventListener('click',()=>{ colorIdx=i; applyColor(); renderSwatches(); refreshOrderBar(); }); wrap.appendChild(s); });
+}
+function renderFinishes(){
+  const wrap=document.getElementById('fin'); wrap.innerHTML='';
+  FINISHES.forEach((f,i)=>{ const b=document.createElement('div'); b.className='fin'+(i===finishIdx?' sel':''); b.textContent=f.n+(f.add?` +${yen(f.add)}`:'');
+    b.addEventListener('click',()=>{ finishIdx=i; applyFinish(); renderFinishes(); refreshOrderBar(); }); wrap.appendChild(b); });
+}
+
+// ---------- controls/buttons ----------
+document.getElementById('back').addEventListener('click',()=>{
+  started=false;
+  document.querySelectorAll('.hud').forEach(e=>e.style.display='none');
+  document.getElementById('start').style.display='flex';
+});
+document.getElementById('spin').addEventListener('click',function(){ spin=!spin; this.classList.toggle('on',spin); });
+
+// ---------- ORDER FLOW ----------
+const modal=document.getElementById('modal'), mBody=document.getElementById('mBody'), mTitle=document.getElementById('mTitle');
+let qty=1;
+function openOrder(){ qty=1; modal.style.display='flex'; stepCart(); }
+function closeOrder(){ modal.style.display='none'; }
+document.getElementById('buy').addEventListener('click',openOrder);
+document.getElementById('mX').addEventListener('click',closeOrder);
+modal.addEventListener('click',e=>{ if(e.target===modal) closeOrder(); });
+
+function miniIco(){ return `<div class="mini">${curProduct.code}</div>`; }
+function lineSpec(){ return COLORS[colorIdx].n+' ／ '+FINISHES[finishIdx].n; }
+function unit(){ return currentPrice(); }
+function shipping(){ return unit()*qty>=15000?0:800; }
+function grand(){ return unit()*qty+shipping(); }
+
+function stepCart(){
+  mTitle.textContent='CART / カート';
+  mBody.innerHTML=`
+    <div class="steps"><i class="on"></i><i></i><i></i></div>
+    <div class="row">${miniIco()}<div class="t"><div class="nm">${curProduct.name}</div><div class="sp">${lineSpec()}</div></div><div class="pr">${yen(unit())}</div></div>
+    <div class="qty"><span style="font-size:12.5px;color:var(--muted);margin-right:auto">数量</span>
+      <button id="qm">−</button><span id="qv">${qty}</span><button id="qp">＋</button></div>
+    <div class="total"><span class="lab">小計（送料は次で計算）</span><span class="v">${yen(unit()*qty)}</span></div>
+    <div class="act"><button class="btn go" id="toShip">配送先の入力へ →</button></div>
+    <div class="demo-note">これはサービス体験デモです。実決済は本番でStripe等の決済代行に接続します。</div>`;
+  document.getElementById('qm').onclick=()=>{ qty=Math.max(1,qty-1); document.getElementById('qv').textContent=qty; mBody.querySelector('.total .v').textContent=yen(unit()*qty); };
+  document.getElementById('qp').onclick=()=>{ qty=Math.min(20,qty+1); document.getElementById('qv').textContent=qty; mBody.querySelector('.total .v').textContent=yen(unit()*qty); };
+  document.getElementById('toShip').onclick=stepShip;
+}
+function stepShip(){
+  mTitle.textContent='SHIPPING / お届け先';
+  mBody.innerHTML=`
+    <div class="steps"><i class="on"></i><i class="on"></i><i></i></div>
+    <div class="grid2"><div class="fld"><label>姓</label><input id="f_sei" placeholder="山田"></div><div class="fld"><label>名</label><input id="f_mei" placeholder="花子"></div></div>
+    <div class="fld"><label>メールアドレス</label><input id="f_mail" type="email" placeholder="you@example.com"></div>
+    <div class="fld"><label>郵便番号</label><input id="f_zip" placeholder="100-0001"></div>
+    <div class="fld"><label>住所</label><input id="f_addr" placeholder="東京都千代田区…"></div>
+    <div class="fld"><label>お支払い方法</label>
+      <div class="pays" id="pays">
+        <div class="pay sel" data-p="クレジットカード"><span class="dot"></span>クレジットカード</div>
+        <div class="pay" data-p="コンビニ決済"><span class="dot"></span>コンビニ決済</div>
+        <div class="pay" data-p="代金引換"><span class="dot"></span>代金引換</div>
+      </div></div>
+    <div class="act"><button class="btn ghost" id="bk">← 戻る</button><button class="btn go" id="toConf">確認へ →</button></div>
+    <div class="demo-note">入力はデモ用です。実際の送信・決済は行われません。</div>`;
+  let pay='クレジットカード';
+  mBody.querySelectorAll('.pay').forEach(p=>p.onclick=()=>{ mBody.querySelectorAll('.pay').forEach(x=>x.classList.remove('sel')); p.classList.add('sel'); pay=p.dataset.p; });
+  document.getElementById('bk').onclick=stepCart;
+  document.getElementById('toConf').onclick=()=>stepConfirm(pay);
+}
+function stepConfirm(pay){
+  mTitle.textContent='CONFIRM / ご注文確認';
+  mBody.innerHTML=`
+    <div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+    <div class="row">${miniIco()}<div class="t"><div class="nm">${curProduct.name} ×${qty}</div><div class="sp">${lineSpec()}</div></div><div class="pr">${yen(unit()*qty)}</div></div>
+    <div style="font-size:13px;color:var(--muted);display:flex;justify-content:space-between;margin:4px 2px"><span>送料</span><span>${shipping()===0?'無料':yen(shipping())}</span></div>
+    <div style="font-size:13px;color:var(--muted);display:flex;justify-content:space-between;margin:4px 2px"><span>お支払い方法</span><span>${pay}</span></div>
+    <div class="total"><span class="lab">合計（税込）</span><span class="v">${yen(grand())}</span></div>
+    <div class="act"><button class="btn ghost" id="bk2">← 戻る</button><button class="btn go" id="place">この内容で注文を確定</button></div>
+    <div class="demo-note">「確定」してもデモのため課金は発生しません。本番は決済代行（Stripe等）に接続します。</div>`;
+  document.getElementById('bk2').onclick=stepShip;
+  document.getElementById('place').onclick=stepDone;
+}
+function stepDone(){
+  mTitle.textContent='COMPLETE';
+  const onum='AZW-'+(curProduct.code)+'-'+Math.floor(100000+ ((unit()*qty+qty*7919)%900000));
+  mBody.innerHTML=`
+    <div class="done">
+      <div class="chk">✓</div>
+      <h3>ご注文ありがとうございます</h3>
+      <p>${curProduct.name}（${lineSpec()}）×${qty} を受け付けました。<br>確認メールをお送りします（デモ表示）。</p>
+      <div class="onum">注文番号　${onum}</div>
+      <div class="act" style="margin-top:18px"><button class="btn go" id="cls">3D体験に戻る</button></div>
+      <div class="demo-note">※体験デモ。実際の決済・配送は行われません。本番は在庫・決済・配送に接続します。</div>
+    </div>`;
+  document.getElementById('cls').onclick=closeOrder;
+}
+
+// ---------- loop ----------
+const clock=new THREE.Clock();
+function animate(){ requestAnimationFrame(animate);
+  const dt=clock.getDelta();
+  if(started && spin && mesh) holder.rotation.y+=dt*0.5;
+  pedRing.rotation.z+=dt*0.6;
+  controls.update();
+  renderer.render(scene,camera);
+}
+animate();
+addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+
+renderCards();
+</script>
+</body>
+</html>
