@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AZONE WORLD — 歩いて体験するショールーム</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Oswald:wght@400;500;600;700&family=Shippori+Mincho+B1:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c0d12; --panel:#1b1e28; --ink:#f3f4f8; --muted:#9aa0b2; --line:#2c3040;
+    --accent:#7c5cff; --accent2:#9d86ff; --accent-d:#5a3fd6; --ok:#34d3a6;
+    --sans:"Zen Kaku Gothic New",sans-serif; --stencil:"Oswald",sans-serif; --mincho:"Shippori Mincho B1",serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;user-select:none;touch-action:none}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+  #brandmark{position:fixed;top:15px;left:18px;z-index:35;font-family:var(--stencil);font-weight:700;font-size:16px;letter-spacing:.02em;color:var(--accent2)}
+  #brandmark b{color:var(--ink)}
+
+  /* enter overlay */
+  #enter{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+         background:radial-gradient(120% 110% at 50% 0%,#1b1e2b,#0c0d12 72%);padding:40px 24px}
+  #enter .kick{font-family:var(--stencil);letter-spacing:.32em;font-size:12px;color:var(--accent2);margin-bottom:14px}
+  #enter h1{font-family:var(--mincho);font-weight:700;font-size:clamp(28px,5.2vw,46px);line-height:1.32}
+  #enter h1 .ac{color:var(--accent2)}
+  #enter p{color:var(--muted);font-size:14.5px;margin-top:14px;max-width:42ch}
+  #enterBtn{margin-top:32px;background:linear-gradient(135deg,var(--accent),var(--accent-d));color:#fff;border:none;border-radius:34px;
+            padding:16px 38px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 14px 36px rgba(124,92,255,.42)}
+  #enterBtn[disabled]{opacity:.5;cursor:default}
+  #enter .ctrls{margin-top:22px;font-size:12px;color:#6e7488;letter-spacing:.02em}
+  #bar{margin-top:18px;width:240px;max-width:70vw;height:5px;border-radius:4px;background:var(--line);overflow:hidden}
+  #bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .2s}
+
+  .hud{position:fixed;z-index:20;display:none}
+  #top{top:14px;left:50%;transform:translateX(-50%);font-size:12.5px;background:rgba(18,20,28,.6);border:1px solid var(--line);border-radius:30px;padding:8px 18px;backdrop-filter:blur(10px);white-space:nowrap}
+  #exit{top:14px;right:16px;background:rgba(18,20,28,.6);border:1px solid var(--line);color:var(--ink);border-radius:30px;padding:9px 16px;font-size:12.5px;font-weight:600;cursor:pointer;backdrop-filter:blur(10px)}
+  #cross{top:50%;left:50%;width:7px;height:7px;margin:-4px 0 0 -4px;border-radius:50%;background:rgba(255,255,255,.5);pointer-events:none}
+  #prompt{bottom:130px;left:50%;transform:translateX(-50%);background:rgba(18,20,28,.78);border:1px solid var(--accent);border-radius:14px;padding:12px 20px;text-align:center;backdrop-filter:blur(10px);cursor:pointer}
+  #prompt .nm{font-family:var(--stencil);font-weight:700;font-size:16px}
+  #prompt .pr{font-size:12.5px;color:var(--accent2);margin-top:2px}
+  #prompt .key{margin-top:7px;font-size:11.5px;color:var(--muted)}
+  #prompt .key b{color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:1px 7px}
+  #hint{bottom:24px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--muted);background:rgba(18,20,28,.5);border:1px solid var(--line);border-radius:20px;padding:6px 15px;backdrop-filter:blur(8px)}
+
+  /* mobile controls */
+  #mobile{position:fixed;inset:0;z-index:18;display:none;pointer-events:none}
+  #movepad{position:absolute;left:0;top:0;width:55%;height:100%;pointer-events:auto;touch-action:none}
+  #lookpad{position:absolute;right:0;top:0;width:45%;height:100%;pointer-events:auto;touch-action:none}
+  #joy{position:fixed;width:120px;height:120px;margin-left:-60px;margin-top:-60px;border-radius:50%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);pointer-events:none;display:none}
+  #knob{position:absolute;left:36px;top:36px;width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.55)}
+
+  /* loader (model swap not needed; both load up-front) */
+
+  /* ===== ORDER / PRODUCT MODAL (reused) ===== */
+  #modal{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(6,7,10,.72);backdrop-filter:blur(6px);padding:18px}
+  .sheet{width:440px;max-width:96vw;max-height:92vh;overflow:auto;background:linear-gradient(180deg,#1c2030,#14161f);border:1px solid var(--line);border-radius:22px;box-shadow:0 40px 80px rgba(0,0,0,.6)}
+  .sheet .hd{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--line)}
+  .sheet .hd b{font-family:var(--stencil);letter-spacing:.06em;font-size:15px}
+  .sheet .hd .x{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer}
+  .sheet .bd{padding:20px 22px}
+  .steps{display:flex;gap:6px;margin-bottom:18px}
+  .steps i{flex:1;height:4px;border-radius:3px;background:var(--line)}
+  .steps i.on{background:var(--accent)}
+  .lab{font-family:var(--stencil);letter-spacing:.14em;font-size:10.5px;color:var(--muted);margin:4px 0 9px;text-transform:uppercase}
+  .swatches{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .sw{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2px solid transparent;outline:1px solid rgba(255,255,255,.18)}
+  .sw.sel{border-color:#fff}
+  .finishes{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:6px}
+  .fin{padding:8px 14px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:12.5px;font-weight:600;cursor:pointer}
+  .fin.sel{background:var(--accent);border-color:transparent;color:#fff}
+  .row{display:flex;align-items:center;gap:14px;padding:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;margin:14px 0}
+  .row .mini{width:54px;height:54px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:var(--stencil);font-weight:700;font-size:18px;color:var(--accent2);background:radial-gradient(80% 90% at 50% 30%,#2a2f44,#13151f);flex:none}
+  .row .t .nm{font-family:var(--stencil);font-weight:700;font-size:15px}
+  .row .t .sp{font-size:11.5px;color:var(--muted)}
+  .row .pr{margin-left:auto;font-family:var(--stencil);font-weight:700;font-size:16px}
+  .qty{display:flex;align-items:center;gap:12px;margin:6px 0 16px}
+  .qty button{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:18px;cursor:pointer}
+  .qty span{font-family:var(--stencil);font-weight:700;font-size:17px;min-width:24px;text-align:center}
+  .fld{margin-bottom:13px}.fld label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:5px}
+  .fld input{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 13px;color:var(--ink);font-size:14px;font-family:var(--sans);outline:none}
+  .fld input:focus{border-color:var(--accent)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .pays{display:flex;flex-direction:column;gap:10px}
+  .pay{display:flex;align-items:center;gap:12px;padding:13px 15px;border:1px solid var(--line);border-radius:12px;cursor:pointer;background:var(--panel);font-size:14px;font-weight:600}
+  .pay.sel{border-color:var(--accent);background:rgba(124,92,255,.1)}
+  .pay .dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--muted)}
+  .pay.sel .dot{border-color:var(--accent);background:var(--accent);box-shadow:inset 0 0 0 3px #14161f}
+  .total{display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 16px;padding-top:14px;border-top:1px solid var(--line)}
+  .total .l{font-size:13px;color:var(--muted)}.total .v{font-family:var(--stencil);font-weight:700;font-size:26px}
+  .act{display:flex;gap:10px;margin-top:6px}
+  .btn{flex:1;border:none;border-radius:12px;padding:14px;font-size:14.5px;font-weight:700;cursor:pointer;font-family:var(--sans)}
+  .btn.ghost{background:var(--panel);border:1px solid var(--line);color:var(--ink);flex:0 0 auto;padding:14px 18px}
+  .btn.go{background:linear-gradient(135deg,var(--accent),var(--accent-d));color:#fff}
+  .dn{font-size:11px;color:#6c7288;margin-top:12px;text-align:center;line-height:1.7}
+  .done{text-align:center;padding:14px 0}
+  .done .chk{width:64px;height:64px;border-radius:50%;background:rgba(52,211,166,.14);color:var(--ok);display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 16px}
+  .done h3{font-family:var(--mincho);font-weight:700;font-size:22px;margin-bottom:8px}
+  .done p{color:var(--muted);font-size:13.5px}
+  .done .onum{font-family:var(--stencil);letter-spacing:.1em;margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:14px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="brandmark"><b>AZONE</b> WORLD</div>
+
+<!-- ENTER -->
+<div id="enter">
+  <div class="kick">WALKABLE 3D SHOWROOM</div>
+  <h1>ワールドに入って、<br><span class="ac">歩いて</span>体験する。</h1>
+  <p>3Dのショールームを自由に歩き回り、気になる商品に近づいて、色を変えて、その場で注文。</p>
+  <div id="bar"><i id="barFill"></i></div>
+  <button id="enterBtn" disabled>読み込み中…</button>
+  <div class="ctrls">PC：ドラッグで見回す・WASD/矢印で移動　／　スマホ：左で移動・右で見回す</div>
+  <div style="margin-top:16px;font-size:12.5px"><a href="experience.html" style="color:var(--accent2);text-decoration:none;font-weight:700">▶ 商品を回して見る（一覧）</a>　｜　<a href="index.html" style="color:var(--muted);text-decoration:none">サービスについて</a></div>
+</div>
+
+<!-- HUD -->
+<div id="top" class="hud">ショールーム — 商品に近づいてみてください</div>
+<button id="exit" class="hud">← 戻る</button>
+<div id="cross" class="hud"></div>
+<div id="prompt" class="hud"><div class="nm">—</div><div class="pr">—</div><div class="key"><b>E</b> または タップで 詳細・注文</div></div>
+<div id="hint" class="hud">ドラッグで見回す・WASDで移動</div>
+
+<!-- mobile -->
+<div id="mobile"><div id="movepad"></div><div id="lookpad"></div><div id="joy"><div id="knob"></div></div></div>
+
+<!-- MODAL -->
+<div id="modal"><div class="sheet"><div class="hd"><b id="mTitle">PRODUCT</b><button class="x" id="mX">✕</button></div><div class="bd" id="mBody"></div></div></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const COLORS=[{n:'ホワイト',c:0xe9e9ef},{n:'レッド',c:0xc23b32},{n:'ブルー',c:0x3b6fd6},{n:'グリーン',c:0x3aa564},{n:'ブラック',c:0x23252e},{n:'ゴールド',c:0xc99a45},{n:'パープル',c:0x7c5cff}];
+const FINISHES=[{n:'マット',rough:0.85,metal:0.0,add:0},{n:'グロス',rough:0.18,metal:0.05,add:800},{n:'メタリック',rough:0.32,metal:0.9,add:1600}];
+const PRODUCTS=[
+  {id:'rx78', code:'RX-78', name:'RX-78', sub:'1/100スケール・組立済フィギュア', file:'models/rx78.stl', price:18800, rotX:-Math.PI/2, color:0, pos:[-3.4,-7]},
+  {id:'zaku', code:'ZAKU', name:'ZAKU', sub:'1/100スケール・組立済フィギュア（高密度）', file:'models/zaku-red.stl', price:24800, rotZ:-Math.PI/2, color:1, pos:[3.4,-13]}
+];
+const yen=n=>'¥'+n.toLocaleString();
+
+// ---------- three ----------
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x0c0d12);
+scene.fog=new THREE.Fog(0x0c0d12, 16, 40);
+const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.05,200);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.05;
+document.getElementById('app').appendChild(renderer.domElement);
+const pmrem=new THREE.PMREMGenerator(renderer);
+scene.environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
+
+// ---------- hall ----------
+const HX=7, ZF=2, ZB=-22;            // x:[-7,7], z:[2 .. -22]
+const matFloor=new THREE.MeshStandardMaterial({color:0x14161e,roughness:0.35,metalness:0.55});
+const matWall =new THREE.MeshStandardMaterial({color:0x191c26,roughness:0.9,metalness:0.05});
+const matCeil =new THREE.MeshStandardMaterial({color:0x0f1116,roughness:0.95});
+const matStrip=new THREE.MeshStandardMaterial({color:0x20242f,emissive:0x6a54d6,emissiveIntensity:0.9,roughness:0.5});
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(HX*2,ZF-ZB),matFloor); floor.rotation.x=-Math.PI/2; floor.position.set(0,0,(ZF+ZB)/2); floor.receiveShadow=true; scene.add(floor);
+const ceil=new THREE.Mesh(new THREE.PlaneGeometry(HX*2,ZF-ZB),matCeil); ceil.rotation.x=Math.PI/2; ceil.position.set(0,4.2,(ZF+ZB)/2); scene.add(ceil);
+function wall(w,h,x,y,z,ry){const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),matWall);m.position.set(x,y,z);m.rotation.y=ry;m.receiveShadow=true;scene.add(m);}
+wall(HX*2,4.2,0,2.1,ZB,0);                      // far
+wall(HX*2,4.2,0,2.1,ZF,Math.PI);                // back (entrance)
+wall(ZF-ZB,4.2,-HX,2.1,(ZF+ZB)/2,Math.PI/2);    // left
+wall(ZF-ZB,4.2,HX,2.1,(ZF+ZB)/2,-Math.PI/2);    // right
+// ceiling light strips
+for(let z=-1; z>ZB; z-=4){ const s=new THREE.Mesh(new THREE.BoxGeometry(5,0.06,0.4),matStrip); s.position.set(0,4.15,z); scene.add(s);
+  const l=new THREE.PointLight(0xeae6ff,12,12,2); l.position.set(0,3.9,z); scene.add(l); }
+// wall accent strips
+for(const sx of [-HX+0.02, HX-0.02]){ const s=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.05,ZF-ZB-1),matStrip); s.position.set(sx,0.18,(ZF+ZB)/2); scene.add(s); }
+// ambient + hemi
+scene.add(new THREE.HemisphereLight(0xbfc6ff,0x0c0d12,0.5));
+scene.add(new THREE.AmbientLight(0xffffff,0.22));
+const sky=new THREE.DirectionalLight(0xffffff,0.6); sky.position.set(4,9,2); scene.add(sky);
+
+// ---------- collision data ----------
+const PR=0.34;                          // player radius
+const pedColliders=[];                  // {x,z,r}
+
+// ---------- pedestal + figure ----------
+const stl=new STLLoader();
+const figures=[];                        // {product, holder, mesh, mat, colorIdx, finishIdx}
+function labelSprite(name,price){
+  const cv=document.createElement('canvas'); cv.width=512; cv.height=160; const x=cv.getContext('2d');
+  x.fillStyle='rgba(20,22,30,.82)'; x.beginPath(); x.roundRect(6,6,500,148,18); x.fill();
+  x.strokeStyle='rgba(124,92,255,.7)'; x.lineWidth=3; x.beginPath(); x.roundRect(6,6,500,148,18); x.stroke();
+  x.fillStyle='#fff'; x.textAlign='center'; x.font='700 60px Oswald, sans-serif'; x.fillText(name,256,72);
+  x.fillStyle='#9d86ff'; x.font='500 40px "Zen Kaku Gothic New", sans-serif'; x.fillText(yen(price)+'〜',256,124);
+  const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false})); sp.scale.set(2.0,0.625,1); return sp;
+}
+function buildPedestal(x,z){
+  const g=new THREE.Group(); g.position.set(x,0,z);
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(1.15,1.3,0.7,48),new THREE.MeshStandardMaterial({color:0x12131a,roughness:0.5,metalness:0.4}));
+  body.position.y=0.35; body.castShadow=true; body.receiveShadow=true;
+  const top=new THREE.Mesh(new THREE.CylinderGeometry(1.16,1.16,0.06,48),new THREE.MeshStandardMaterial({color:0x202433,roughness:0.35,metalness:0.5,emissive:0x241d52,emissiveIntensity:0.3}));
+  top.position.y=0.71;
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(1.16,0.018,10,64),new THREE.MeshStandardMaterial({color:0x7c5cff,emissive:0x7c5cff,emissiveIntensity:0.9})); ring.rotation.x=Math.PI/2; ring.position.y=0.74;
+  g.add(body,top,ring); scene.add(g);
+  // spotlight from above
+  const sp=new THREE.SpotLight(0xffffff,30,9,Math.PI/6,0.4,1.3); sp.position.set(x,4.0,z); sp.target.position.set(x,1,z); scene.add(sp); scene.add(sp.target);
+  pedColliders.push({x,z,r:1.3});
+  return g;
+}
+const PED_TOP=0.74;
+
+function placeFigure(p,geo){
+  const fig={product:p, colorIdx:p.color, finishIdx:0};
+  const holder=new THREE.Group(); holder.position.set(p.pos[0],0,p.pos[1]); scene.add(holder);
+  const g=geo.clone(); g.computeVertexNormals();
+  if(p.rotX)g.rotateX(p.rotX); if(p.rotY)g.rotateY(p.rotY); if(p.rotZ)g.rotateZ(p.rotZ);
+  g.computeBoundingBox(); const size=new THREE.Vector3(), ctr=new THREE.Vector3(); g.boundingBox.getSize(size); g.boundingBox.getCenter(ctr);
+  g.translate(-ctr.x,-ctr.y,-ctr.z);
+  const targetH=1.7, sc=targetH/Math.max(size.y,0.001);
+  const mat=new THREE.MeshStandardMaterial({color:COLORS[fig.colorIdx].c,roughness:FINISHES[0].rough,metalness:FINISHES[0].metal,envMapIntensity:1});
+  const mesh=new THREE.Mesh(g,mat); mesh.castShadow=true; mesh.scale.setScalar(sc); mesh.position.y=PED_TOP+(size.y*sc)/2;
+  holder.add(mesh);
+  const lab=labelSprite(p.name,p.price); lab.position.set(0,PED_TOP+size.y*sc+0.55,0); holder.add(lab);
+  fig.holder=holder; fig.mesh=mesh; fig.mat=mat; fig.spinTarget=holder;
+  figures.push(fig);
+}
+
+// empty "coming soon" pedestals to fill the hall
+function comingSoon(x,z){ buildPedestal(x,z);
+  const cv=document.createElement('canvas');cv.width=256;cv.height=80;const c=cv.getContext('2d');
+  c.fillStyle='#3a3f52';c.textAlign='center';c.font='600 30px Oswald, sans-serif';c.fillText('COMING SOON',128,50);
+  const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false}));sp.scale.set(1.6,0.5,1);sp.position.set(x,1.4,z);scene.add(sp);
+}
+
+// ---------- load both models ----------
+let loaded=0; const total=PRODUCTS.length;
+PRODUCTS.forEach(p=>{ buildPedestal(p.pos[0],p.pos[1]);
+  stl.load(p.file, geo=>{ placeFigure(p,geo); loaded++; document.getElementById('barFill').style.width=Math.round(loaded/total*100)+'%';
+      if(loaded===total){ const b=document.getElementById('enterBtn'); b.disabled=false; b.textContent='▶ ワールドに入る'; }
+    }, ev=>{ if(ev.lengthComputable){ /* per-file progress folded into count */ } },
+    err=>{ console.error('STL load',p.id,err); });
+});
+comingSoon(-3.4,-16); comingSoon(3.4,-4.5);
+
+// ---------- player / controls ----------
+let px=0, pz=0, yaw=0, pitch=0, started=false, modalOpen=false;
+const keys={};
+addEventListener('keydown',e=>{ keys[e.code]=true; if(e.code==='KeyE'&&started&&!modalOpen&&activeFig){ openProduct(activeFig); } });
+addEventListener('keyup',e=>{ keys[e.code]=false; });
+const isTouch=('ontouchstart' in window)||navigator.maxTouchPoints>0;
+let dragging=false,dpx=0,dpy=0;
+renderer.domElement.addEventListener('mousedown',e=>{ if(!started||isTouch||modalOpen)return; dragging=true;dpx=e.clientX;dpy=e.clientY; });
+addEventListener('mouseup',()=>dragging=false);
+addEventListener('mousemove',e=>{ if(!dragging)return; yaw-=(e.clientX-dpx)*0.004; pitch-=(e.clientY-dpy)*0.004; pitch=Math.max(-1.1,Math.min(1.1,pitch)); dpx=e.clientX;dpy=e.clientY; });
+// touch
+const move={x:0,z:0};
+if(isTouch){
+  const joy=document.getElementById('joy'),knob=document.getElementById('knob'),mp=document.getElementById('movepad');let jid=null,ox=0,oy=0;
+  mp.addEventListener('touchstart',e=>{const t=e.changedTouches[0];jid=t.identifier;ox=t.clientX;oy=t.clientY;joy.style.left=ox+'px';joy.style.top=oy+'px';joy.style.display='block';knob.style.transform='translate(0,0)';e.preventDefault();},{passive:false});
+  mp.addEventListener('touchmove',e=>{for(const t of e.changedTouches){if(t.identifier===jid){let dx=t.clientX-ox,dy=t.clientY-oy;const mx=44,d=Math.hypot(dx,dy);if(d>mx){dx*=mx/d;dy*=mx/d;}knob.style.transform=`translate(${dx}px,${dy}px)`;move.x=dx/mx;move.z=dy/mx;}}e.preventDefault();},{passive:false});
+  const ej=e=>{for(const t of e.changedTouches){if(t.identifier===jid){jid=null;move.x=0;move.z=0;joy.style.display='none';}}};
+  mp.addEventListener('touchend',ej);mp.addEventListener('touchcancel',ej);
+  const lp=document.getElementById('lookpad');let lid=null,lx=0,ly=0;
+  lp.addEventListener('touchstart',e=>{const t=e.changedTouches[0];lid=t.identifier;lx=t.clientX;ly=t.clientY;e.preventDefault();},{passive:false});
+  lp.addEventListener('touchmove',e=>{for(const t of e.changedTouches){if(t.identifier===lid){yaw-=(t.clientX-lx)*0.005;pitch-=(t.clientY-ly)*0.005;pitch=Math.max(-1.1,Math.min(1.1,pitch));lx=t.clientX;ly=t.clientY;}}e.preventDefault();},{passive:false});
+  const el=e=>{for(const t of e.changedTouches){if(t.identifier===lid)lid=null;}};
+  lp.addEventListener('touchend',el);lp.addEventListener('touchcancel',el);
+}
+
+function enterWorld(){
+  started=true; px=0; pz=0; yaw=0; pitch=0;
+  document.getElementById('enter').style.display='none';
+  document.querySelectorAll('.hud').forEach(e=>e.style.display='block');
+  document.getElementById('prompt').style.display='none';
+  if(isTouch) document.getElementById('mobile').style.display='block';
+  document.getElementById('hint').textContent=isTouch?'左で移動・右で見回す・近づいてタップ':'ドラッグで見回す・WASDで移動・近づいてE';
+  setTimeout(()=>{document.getElementById('hint').style.display='none';},5000);
+}
+document.getElementById('enterBtn').addEventListener('click',()=>{ if(!document.getElementById('enterBtn').disabled) enterWorld(); });
+document.getElementById('exit').addEventListener('click',()=>{ started=false; document.querySelectorAll('.hud').forEach(e=>e.style.display='none'); document.getElementById('mobile').style.display='none'; document.getElementById('enter').style.display='flex'; });
+document.getElementById('prompt').addEventListener('click',()=>{ if(activeFig) openProduct(activeFig); });
+
+// ---------- proximity ----------
+let activeFig=null;
+function updateProximity(){
+  let best=null,bd=3.4;
+  for(const f of figures){ const d=Math.hypot(px-f.holder.position.x, pz-f.holder.position.z); if(d<bd){bd=d;best=f;} }
+  activeFig=best;
+  const pr=document.getElementById('prompt');
+  if(best&&!modalOpen){ pr.style.display='block'; pr.querySelector('.nm').textContent=best.product.name; pr.querySelector('.pr').textContent=yen(curPrice(best))+'〜'; }
+  else pr.style.display='none';
+}
+function curPrice(f){ return f.product.price + FINISHES[f.finishIdx].add; }
+
+// ---------- PRODUCT / ORDER MODAL ----------
+const modal=document.getElementById('modal'), mBody=document.getElementById('mBody'), mTitle=document.getElementById('mTitle');
+let curFig=null, qty=1;
+document.getElementById('mX').addEventListener('click',closeModal);
+modal.addEventListener('click',e=>{ if(e.target===modal) closeModal(); });
+function closeModal(){ modal.style.display='none'; modalOpen=false; }
+function openProduct(f){ curFig=f; qty=1; modalOpen=true; modal.style.display='flex'; stepDetail(); }
+function applyColor(){ curFig.mat.color.setHex(COLORS[curFig.colorIdx].c); }
+function applyFinish(){ curFig.mat.roughness=FINISHES[curFig.finishIdx].rough; curFig.mat.metalness=FINISHES[curFig.finishIdx].metal; curFig.mat.needsUpdate=true; }
+function spec(){ return COLORS[curFig.colorIdx].n+' ／ '+FINISHES[curFig.finishIdx].n; }
+function unit(){ return curFig.product.price+FINISHES[curFig.finishIdx].add; }
+function ship(){ return unit()*qty>=15000?0:800; }
+function grand(){ return unit()*qty+ship(); }
+function mini(){ return `<div class="mini">${curFig.product.code}</div>`; }
+
+function stepDetail(){
+  mTitle.textContent='PRODUCT / 商品';
+  mBody.innerHTML=`
+    <div class="row">${mini()}<div class="t"><div class="nm">${curFig.product.name}</div><div class="sp">${curFig.product.sub}</div></div><div class="pr">${yen(unit())}</div></div>
+    <div class="lab">Color / カラー（ワールドの展示にも反映）</div><div class="swatches" id="sw"></div>
+    <div class="lab">Finish / 仕上げ</div><div class="finishes" id="fin"></div>
+    <div class="act" style="margin-top:16px"><button class="btn go" id="toCart">🛒 この仕様で注文する</button></div>
+    <div class="dn">3Dワールドはサービス体験デモです。実決済は本番でStripe等に接続します。</div>`;
+  const sw=document.getElementById('sw'); COLORS.forEach((c,i)=>{const s=document.createElement('div');s.className='sw'+(i===curFig.colorIdx?' sel':'');s.style.background='#'+c.c.toString(16).padStart(6,'0');s.onclick=()=>{curFig.colorIdx=i;applyColor();stepDetail();};sw.appendChild(s);});
+  const fin=document.getElementById('fin'); FINISHES.forEach((f,i)=>{const b=document.createElement('div');b.className='fin'+(i===curFig.finishIdx?' sel':'');b.textContent=f.n+(f.add?` +${yen(f.add)}`:'');b.onclick=()=>{curFig.finishIdx=i;applyFinish();stepDetail();};fin.appendChild(b);});
+  document.getElementById('toCart').onclick=stepCart;
+}
+function stepCart(){
+  mTitle.textContent='CART / カート';
+  mBody.innerHTML=`<div class="steps"><i class="on"></i><i></i><i></i></div>
+    <div class="row">${mini()}<div class="t"><div class="nm">${curFig.product.name}</div><div class="sp">${spec()}</div></div><div class="pr">${yen(unit())}</div></div>
+    <div class="qty"><span style="font-size:12.5px;color:var(--muted);margin-right:auto">数量</span><button id="qm">−</button><span id="qv">${qty}</span><button id="qp">＋</button></div>
+    <div class="total"><span class="l">小計</span><span class="v">${yen(unit()*qty)}</span></div>
+    <div class="act"><button class="btn ghost" id="bk">←</button><button class="btn go" id="toShip">配送先へ →</button></div>`;
+  document.getElementById('qm').onclick=()=>{qty=Math.max(1,qty-1);document.getElementById('qv').textContent=qty;mBody.querySelector('.total .v').textContent=yen(unit()*qty);};
+  document.getElementById('qp').onclick=()=>{qty=Math.min(20,qty+1);document.getElementById('qv').textContent=qty;mBody.querySelector('.total .v').textContent=yen(unit()*qty);};
+  document.getElementById('bk').onclick=stepDetail; document.getElementById('toShip').onclick=stepShip;
+}
+function stepShip(){
+  mTitle.textContent='SHIPPING / お届け先';
+  mBody.innerHTML=`<div class="steps"><i class="on"></i><i class="on"></i><i></i></div>
+    <div class="grid2"><div class="fld"><label>姓</label><input placeholder="山田"></div><div class="fld"><label>名</label><input placeholder="花子"></div></div>
+    <div class="fld"><label>メール</label><input type="email" placeholder="you@example.com"></div>
+    <div class="fld"><label>住所</label><input placeholder="東京都…"></div>
+    <div class="lab">お支払い方法</div><div class="pays" id="pays">
+      <div class="pay sel" data-p="クレジットカード"><span class="dot"></span>クレジットカード</div>
+      <div class="pay" data-p="コンビニ決済"><span class="dot"></span>コンビニ決済</div>
+      <div class="pay" data-p="代金引換"><span class="dot"></span>代金引換</div></div>
+    <div class="act" style="margin-top:14px"><button class="btn ghost" id="bk">←</button><button class="btn go" id="toConf">確認へ →</button></div>
+    <div class="dn">入力はデモ用です。実際の送信・決済は行われません。</div>`;
+  let pay='クレジットカード'; mBody.querySelectorAll('.pay').forEach(p=>p.onclick=()=>{mBody.querySelectorAll('.pay').forEach(x=>x.classList.remove('sel'));p.classList.add('sel');pay=p.dataset.p;});
+  document.getElementById('bk').onclick=stepCart; document.getElementById('toConf').onclick=()=>stepConf(pay);
+}
+function stepConf(pay){
+  mTitle.textContent='CONFIRM / 確認';
+  mBody.innerHTML=`<div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+    <div class="row">${mini()}<div class="t"><div class="nm">${curFig.product.name} ×${qty}</div><div class="sp">${spec()}</div></div><div class="pr">${yen(unit()*qty)}</div></div>
+    <div style="font-size:13px;color:var(--muted);display:flex;justify-content:space-between;margin:4px 2px"><span>送料</span><span>${ship()===0?'無料':yen(ship())}</span></div>
+    <div style="font-size:13px;color:var(--muted);display:flex;justify-content:space-between;margin:4px 2px"><span>支払い</span><span>${pay}</span></div>
+    <div class="total"><span class="l">合計（税込）</span><span class="v">${yen(grand())}</span></div>
+    <div class="act"><button class="btn ghost" id="bk">←</button><button class="btn go" id="place">注文を確定</button></div>
+    <div class="dn">「確定」してもデモのため課金は発生しません。</div>`;
+  document.getElementById('bk').onclick=stepShip; document.getElementById('place').onclick=stepDone;
+}
+function stepDone(){
+  mTitle.textContent='COMPLETE';
+  const onum='AZW-'+curFig.product.code+'-'+Math.floor(100000+((unit()*qty+qty*7919)%900000));
+  mBody.innerHTML=`<div class="done"><div class="chk">✓</div><h3>ご注文ありがとうございます</h3>
+    <p>${curFig.product.name}（${spec()}）×${qty} を受け付けました。</p>
+    <div class="onum">注文番号　${onum}</div>
+    <div class="act" style="margin-top:18px"><button class="btn go" id="cls">ワールドに戻る</button></div>
+    <div class="dn">※体験デモ。実際の決済・配送は行われません。</div></div>`;
+  document.getElementById('cls').onclick=closeModal;
+}
+
+// ---------- loop ----------
+const clock=new THREE.Clock();
+function animate(){ requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),0.05);
+  for(const f of figures) f.holder.rotation.y+=dt*0.4;     // figures slowly turn
+  if(started && !modalOpen){
+    let mx=0,mz=0;
+    if(isTouch){ mx=move.x; mz=-move.z; }
+    else { if(keys['KeyW']||keys['ArrowUp'])mz+=1; if(keys['KeyS']||keys['ArrowDown'])mz-=1; if(keys['KeyA']||keys['ArrowLeft'])mx-=1; if(keys['KeyD']||keys['ArrowRight'])mx+=1; }
+    if(mx||mz){ const l=Math.hypot(mx,mz)||1; mx/=l; mz/=l; const sp=3.2*dt;
+      const vx=(-Math.sin(yaw)*mz+Math.cos(yaw)*mx)*sp, vz=(-Math.cos(yaw)*mz-Math.sin(yaw)*mx)*sp;
+      let nx=px+vx, nz=pz+vz;
+      // walls
+      nx=Math.max(-HX+PR,Math.min(HX-PR,nx)); nz=Math.max(ZB+PR,Math.min(ZF-PR,nz));
+      // pedestals (circle push-out)
+      for(const c of pedColliders){ const dx=nx-c.x,dz=nz-c.z,d=Math.hypot(dx,dz),rr=c.r+PR; if(d<rr&&d>1e-4){ nx=c.x+dx/d*rr; nz=c.z+dz/d*rr; } }
+      px=nx; pz=nz;
+    }
+    updateProximity();
+  }
+  camera.rotation.order='YXZ'; camera.rotation.y=yaw; camera.rotation.x=pitch; camera.position.set(px,1.6,pz);
+  renderer.render(scene,camera);
+}
+animate();
+addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+</script>
+</body>
+</html>

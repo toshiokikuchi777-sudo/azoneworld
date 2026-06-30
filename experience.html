@@ -19,8 +19,8 @@
   canvas{display:block}
 
   /* brand mark */
-  #vsw{position:fixed;top:15px;left:18px;z-index:35;font-family:var(--stencil);font-weight:700;font-size:16px;letter-spacing:.02em;color:var(--accent2)}
-  #vsw b{color:var(--ink);font-weight:700}
+  #brandmark{position:fixed;top:15px;left:18px;z-index:35;font-family:var(--stencil);font-weight:700;font-size:16px;letter-spacing:.02em;color:var(--accent2)}
+  #brandmark b{color:var(--ink);font-weight:700}
 
   /* ===== START / SELECT ===== */
   #start{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
@@ -136,7 +136,7 @@
 </head>
 <body>
 <div id="app"></div>
-<div id="vsw"><b>AZONE</b> WORLD<span style="color:var(--muted);font-weight:400;font-size:11px;font-family:var(--sans)">　3D体験ストア</span></div>
+<div id="brandmark"><b>AZONE</b> WORLD<span style="color:var(--muted);font-weight:400;font-size:11px;font-family:var(--sans)">　3D体験ストア</span></div>
 
 <!-- LOADER -->
 <div id="loader"><div class="ring"></div><div class="lt" id="lt">LOADING 3D…</div></div>
@@ -147,7 +147,7 @@
   <h1>商品を<span class="ac">3Dで体感</span>して、<br>そのまま注文まで。</h1>
   <div class="sub">回して・寄って・仕様を選んで、気に入ったら決済へ。実物を手に取る前に、立体と質感をその場で確かめられます。</div>
   <div class="cards" id="cards"></div>
-  <div class="foot">ドラッグで回転・ホイール/ピンチで拡大　｜　Produced by Vsw.co.jp</div>
+  <div class="foot"><a href="world.html" style="color:var(--accent2);text-decoration:none;font-weight:700">🚶 ショールームを歩いて見る</a>　｜　<a href="index.html" style="color:var(--muted);text-decoration:none">サービスについて</a>　｜　Produced by MASTAR DESIGN</div>
 </div>
 
 <!-- VIEWER HUD -->
