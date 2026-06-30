@@ -139,6 +139,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const COLORS=[{n:'ホワイト',c:0xe9e9ef},{n:'レッド',c:0xc23b32},{n:'ブルー',c:0x3b6fd6},{n:'グリーン',c:0x3aa564},{n:'ブラック',c:0x23252e},{n:'ゴールド',c:0xc99a45},{n:'パープル',c:0x7c5cff}];
@@ -251,8 +252,19 @@ PRODUCTS.forEach(p=>{ buildPedestal(p.pos[0],p.pos[1]);
 });
 comingSoon(-3.4,-16); comingSoon(3.4,-4.5);
 
+// ---------- 三人称アバター（Walking.fbx）----------
+new FBXLoader().load('Walking.fbx', obj=>{
+  obj.scale.setScalar(0.00907);                       // 約1.72m
+  obj.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.frustumCulled=false; } });
+  avatar=obj; avatar.position.set(px,0,pz); avatar.rotation.y=heading; scene.add(avatar);
+  avatarMixer=new THREE.AnimationMixer(avatar);
+  if(obj.animations&&obj.animations.length){ walkAction=avatarMixer.clipAction(obj.animations[0]); walkAction.play(); walkAction.paused=true; }
+}, undefined, e=>console.error('FBX load', e));
+
 // ---------- player / controls ----------
-let px=0, pz=0, yaw=0, pitch=0, started=false, modalOpen=false;
+let px=0, pz=0, yaw=0, pitch=0.12, started=false, modalOpen=false;
+let heading=Math.PI, camDist=4.2;
+let avatar=null, avatarMixer=null, walkAction=null;
 const keys={};
 addEventListener('keydown',e=>{ keys[e.code]=true; if(e.code==='KeyE'&&started&&!modalOpen&&activeFig){ openProduct(activeFig); } });
 addEventListener('keyup',e=>{ keys[e.code]=false; });
@@ -277,12 +289,14 @@ if(isTouch){
 }
 
 function enterWorld(){
-  started=true; px=0; pz=0; yaw=0; pitch=0;
+  started=true; px=0; pz=0; yaw=0; pitch=0.12; heading=Math.PI;
+  if(avatar){ avatar.position.set(0,0,0); avatar.rotation.y=Math.PI; }
   document.getElementById('enter').style.display='none';
   document.querySelectorAll('.hud').forEach(e=>e.style.display='block');
   document.getElementById('prompt').style.display='none';
+  document.getElementById('cross').style.display='none';   // 三人称では照準を非表示
   if(isTouch) document.getElementById('mobile').style.display='block';
-  document.getElementById('hint').textContent=isTouch?'左で移動・右で見回す・近づいてタップ':'ドラッグで見回す・WASDで移動・近づいてE';
+  document.getElementById('hint').textContent=isTouch?'左で移動・右で見回す・近づいてタップ':'ドラッグで視点回転・WASDで歩く・近づいてE';
   setTimeout(()=>{document.getElementById('hint').style.display='none';},5000);
 }
 document.getElementById('enterBtn').addEventListener('click',()=>{ if(!document.getElementById('enterBtn').disabled) enterWorld(); });
@@ -381,22 +395,31 @@ const clock=new THREE.Clock();
 function animate(){ requestAnimationFrame(animate);
   const dt=Math.min(clock.getDelta(),0.05);
   for(const f of figures) f.holder.rotation.y+=dt*0.4;     // figures slowly turn
+  let moving=false;
   if(started && !modalOpen){
     let mx=0,mz=0;
     if(isTouch){ mx=move.x; mz=-move.z; }
     else { if(keys['KeyW']||keys['ArrowUp'])mz+=1; if(keys['KeyS']||keys['ArrowDown'])mz-=1; if(keys['KeyA']||keys['ArrowLeft'])mx-=1; if(keys['KeyD']||keys['ArrowRight'])mx+=1; }
-    if(mx||mz){ const l=Math.hypot(mx,mz)||1; mx/=l; mz/=l; const sp=3.2*dt;
-      const vx=(-Math.sin(yaw)*mz+Math.cos(yaw)*mx)*sp, vz=(-Math.cos(yaw)*mz-Math.sin(yaw)*mx)*sp;
-      let nx=px+vx, nz=pz+vz;
-      // walls
+    moving=!!(mx||mz);
+    if(moving){ const l=Math.hypot(mx,mz)||1; mx/=l; mz/=l; const sp=3.2*dt;
+      const vx=(-Math.sin(yaw)*mz+Math.cos(yaw)*mx), vz=(-Math.cos(yaw)*mz-Math.sin(yaw)*mx);
+      let nx=px+vx*sp, nz=pz+vz*sp;
       nx=Math.max(-HX+PR,Math.min(HX-PR,nx)); nz=Math.max(ZB+PR,Math.min(ZF-PR,nz));
-      // pedestals (circle push-out)
       for(const c of pedColliders){ const dx=nx-c.x,dz=nz-c.z,d=Math.hypot(dx,dz),rr=c.r+PR; if(d<rr&&d>1e-4){ nx=c.x+dx/d*rr; nz=c.z+dz/d*rr; } }
-      px=nx; pz=nz;
+      px=nx; pz=nz; heading=Math.atan2(vx,vz);
     }
     updateProximity();
   }
-  camera.rotation.order='YXZ'; camera.rotation.y=yaw; camera.rotation.x=pitch; camera.position.set(px,1.6,pz);
+  // 三人称アバター（歩行モーション）
+  if(avatar){ avatar.position.set(px,0,pz);
+    let dh=heading-avatar.rotation.y; while(dh>Math.PI)dh-=6.28318; while(dh<-Math.PI)dh+=6.28318; avatar.rotation.y+=dh*Math.min(1,dt*10);
+    if(walkAction) walkAction.paused=!moving; if(avatarMixer) avatarMixer.update(dt);
+  }
+  // 背後の三人称カメラ（ドラッグ/右ドラッグで旋回）
+  const tx=px, ty=1.2, tz=pz, cp=Math.max(0.25,Math.cos(pitch)), vy=Math.sin(pitch);
+  let cxp=tx+Math.sin(yaw)*camDist*cp, czp=tz+Math.cos(yaw)*camDist*cp, cyp=Math.max(0.5, ty+camDist*vy+0.7);
+  cxp=Math.max(-HX+0.3,Math.min(HX-0.3,cxp)); czp=Math.max(ZB+0.3,Math.min(ZF-0.3,czp));
+  camera.position.set(cxp,cyp,czp); camera.lookAt(tx,ty,tz);
   renderer.render(scene,camera);
 }
 animate();
